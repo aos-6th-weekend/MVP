@@ -22,6 +22,7 @@ public class ArticleAdapter extends RecyclerView.Adapter<ArticleAdapter.ViewHold
     public ArticleAdapter(List<Article> articles, Context context) {
         this.articles = articles;
         this.context = context;
+        this.callback= (ArticleCallback) context;
     }
 
 
@@ -44,6 +45,14 @@ public class ArticleAdapter extends RecyclerView.Adapter<ArticleAdapter.ViewHold
         viewHolder.date.setText(article.getCreatedDate());
         Glide.with(context).load(article.getImage())
                 .into(viewHolder.thumb);
+
+        viewHolder.btnDelete.setOnClickListener(v->{
+            callback.onDelete(article,viewHolder.getAdapterPosition());
+        });
+        viewHolder.itemView.setOnClickListener(v->{
+            callback.onArticleItemClicked(article);
+        });
+
     }
 
     @Override
@@ -57,8 +66,18 @@ public class ArticleAdapter extends RecyclerView.Adapter<ArticleAdapter.ViewHold
 
     }
 
+    public void setArticle(Article article) {
+        this.articles.add(0,article);
+        notifyItemInserted(0);
+    }
+
+    public void deleteArticle(Article article, int pos) {
+        this.articles.remove(article);
+        notifyItemRemoved(pos);
+    }
+
     class ViewHolder extends RecyclerView.ViewHolder{
-        ImageView thumb;
+        ImageView thumb,btnDelete;
         TextView title,date,authorName;
 
         public ViewHolder(@NonNull View itemView) {
@@ -67,6 +86,16 @@ public class ArticleAdapter extends RecyclerView.Adapter<ArticleAdapter.ViewHold
             title=itemView.findViewById(R.id.title);
             date=itemView.findViewById(R.id.date);
             authorName=itemView.findViewById(R.id.authorName);
+            btnDelete=itemView.findViewById(R.id.btnDelete);
         }
+    }
+
+
+    private  ArticleCallback callback;
+    public  interface ArticleCallback{
+        void onDelete(Article article,int pos);
+
+        void onArticleItemClicked(Article article);
+
     }
 }
