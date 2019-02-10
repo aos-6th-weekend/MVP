@@ -31,6 +31,12 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.observers.DisposableObserver;
+import io.reactivex.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -50,6 +56,9 @@ public class HomeActivity extends AppCompatActivity  implements ArticleAdapter.A
     int currentPage=1;
     boolean isLoading=false;
     int totalPage=100;
+
+
+    CompositeDisposable disposable=new CompositeDisposable();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +88,6 @@ public class HomeActivity extends AppCompatActivity  implements ArticleAdapter.A
                 .setLoadingListItemCreator(null)
                 .setLoadingListItemSpanSizeLookup(()-> 2)
                 .build();
-
     }
 
     private Paginate.Callbacks callback=new Paginate.Callbacks() {
@@ -88,10 +96,14 @@ public class HomeActivity extends AppCompatActivity  implements ArticleAdapter.A
             Log.e("oooooo", "onLoadMore: "+currentPage );
 
             isLoading=true;
-            new Handler().postDelayed(()->{
-                getArticles(currentPage,5);
+            getArticlesRx(currentPage,5);
+            currentPage++;
+
+            /*new Handler().postDelayed(()->{
+                //getArticles(currentPage,5);
+                getArticlesRx(currentPage,5);
                 currentPage++;
-            },1000);
+            },1000);*/
 
         }
 
@@ -131,6 +143,40 @@ public class HomeActivity extends AppCompatActivity  implements ArticleAdapter.A
             }
         });
     }
+
+    void getArticlesRx(int page,int limit){
+
+        progressBar.setVisibility(View.VISIBLE);
+
+        disposable.add(
+            articleService.getArticlesRx(page,limit)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeWith(new DisposableObserver<ArticleResponse>() {
+                        @Override
+                        public void onNext(ArticleResponse articleResponse) {
+                            articleAdapter.updateArticles(articleResponse.getArticle());
+
+                            totalPage=articleResponse.getPagination().getTotalPages();
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            Log.e("oooooo", "onError: "+ e.toString() );
+                        }
+
+                        @Override
+                        public void onComplete() {
+                            if(articleAdapter.getItemCount()<=0)
+                                tvNoData.setText("No Data");
+
+                            isLoading=false;
+                            progressBar.setVisibility(View.GONE);
+                        }
+                    })
+        );
+    }
+
 
 
     @Override
@@ -206,5 +252,11 @@ public class HomeActivity extends AppCompatActivity  implements ArticleAdapter.A
         b.putParcelable("author",article.getAuthor());
         intent.putExtras(b);
         startActivity(intent);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        disposable.clear();
     }
 }

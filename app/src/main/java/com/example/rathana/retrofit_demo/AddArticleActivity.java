@@ -13,6 +13,10 @@ import com.example.rathana.retrofit_demo.data.service.ArticleService;
 import com.example.rathana.retrofit_demo.model.form.ArticleForm;
 import com.google.gson.JsonObject;
 
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.observers.DisposableSingleObserver;
+import io.reactivex.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -24,6 +28,7 @@ public class AddArticleActivity extends AppCompatActivity {
     private ImageView thumb;
     private Button btnSave;
     private ArticleService articleService;
+    private CompositeDisposable disposable=new CompositeDisposable();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,7 +53,10 @@ public class AddArticleActivity extends AppCompatActivity {
             form.setDescription(etDesc.getText().toString());
             form.setImage("https://www.boostability.com/wp-content/uploads/2014/09/Panda-Update.jpg");
 
-            articleService.addArticle(form)
+
+            addArticle(form);
+
+            /*articleService.addArticle(form)
             .enqueue(new Callback<Response<JsonObject>>() {
                 @Override
                 public void onResponse(Call<Response<JsonObject>> call, Response<Response<JsonObject>> response) {
@@ -66,8 +74,39 @@ public class AddArticleActivity extends AppCompatActivity {
                 public void onFailure(Call<Response<JsonObject>> call, Throwable t) {
 
                 }
-            });
+            });*/
         });
 
+    }
+
+    void addArticle(ArticleForm form){
+        disposable.add(
+            articleService.addArticleRx(form)
+                    .subscribeOn(Schedulers.computation())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeWith(new DisposableSingleObserver<Response<JsonObject>>() {
+                        @Override
+                        public void onSuccess(Response<JsonObject> jsonObjectResponse) {
+
+                            Intent intent=new Intent();
+                            Bundle b=new Bundle();
+                            b.putParcelable("article",form);
+                            intent.putExtras(b);
+                            setResult(RESULT_OK,intent);
+                            finish();
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+
+                        }
+                    })
+        );
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        disposable.clear();
     }
 }
